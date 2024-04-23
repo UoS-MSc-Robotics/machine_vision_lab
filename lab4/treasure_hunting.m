@@ -70,11 +70,12 @@ function treasure_hunter(img)
     % Hunting
     cur_object = start_arrow_id; % start from the red arrow
     path = cur_object; % memorise the path
+    prev_angle = 0;
 
     % while the current object is an arrow, continue to search
     while ismember(cur_object, arrow_list)
         % find the next closest arrow
-        cur_object = next_object_finder(cur_object, props, all_boxes_list, img, path);
+        [cur_object, prev_angle] = next_object_finder(cur_object, props, all_boxes_list, img, path, prev_angle);
         path(end + 1) = cur_object;
     end
 
@@ -140,17 +141,30 @@ function [arrow_list, treasure_list] = arrow_finder(props, img)
 end
 
 % Function to find the next object in the path
-function cur_object = next_object_finder(cur_object, props, all_boxes_list, img, path)
-    % get the bounding box of the current object
-    cur_bbox = props(cur_object).BoundingBox;
-
+function [cur_object, prev_angle] = next_object_finder(cur_object, props, all_boxes_list, img, path, prev_angle)
     % get the centroid of the current object
     cur_centroid = props(cur_object).Centroid;
+
+    % get yellow centroid
+    % get the bounding box of the current object
+    bbox_cur_object = props(cur_object).BoundingBox;
+
+    % calculate the current yellow centroid
+    bbox_cur_object_x = bbox_cur_object(1);
+    bbox_cur_object_y = bbox_cur_object(2);
+    cur_yellow_centroid = get_yellow_centroid(img, bbox_cur_object);
+    cur_yellow_centroid(1) = cur_yellow_centroid(1);
+    cur_yellow_centroid(2) = cur_yellow_centroid(2);
+
+    % create a vector
+    cur_vector = cur_yellow_centroid - cur_centroid;
 
     % find the closest object to the current object
     min_dist = inf;
     min_angle = inf;
     cur_object = 0;
+    dist_buffer = 50;
+    start = false;
 
     for object_idx = 1 : numel(all_boxes_list)
         object = all_boxes_list(object_idx);
@@ -162,14 +176,87 @@ function cur_object = next_object_finder(cur_object, props, all_boxes_list, img,
             % get the centroid of the object
             centroid = props(object).Centroid;
 
-            % compute the distance between the current object and the object
-            dist = norm(cur_centroid - centroid);
+            % get yellow centroid
+            yellow_centroid = get_yellow_centroid(img, bbox);
+            yellow_centroid(1) = yellow_centroid(1);
+            yellow_centroid(2) = yellow_centroid(2);
+
+            % create a vector
+            vector = yellow_centroid - centroid;
+
+            % compute the distance between the two vectors
+            dist = norm(centroid - cur_centroid);
+            % dist = norm(vector - cur_vector);
+
+            % get angle between the two vectors
+            angle = acos(dot(vector, cur_vector) / (norm(vector) * norm(cur_vector)));
 
             % check if the object is closer than the current closest object
             if dist < min_dist
+                if rad2deg(abs(prev_angle - angle)) > 110
+                    continue;
+                    disp("Angle too large");
+                end
                 min_dist = dist;
                 cur_object = object;
             end
         end
     end
+
+    prev_angle = acos(dot(vector, cur_vector) / (norm(vector) * norm(cur_vector)));
+    disp(cur_object + " " + rad2deg(prev_angle));
+
+end
+
+% Function to extract yellow centroid from a bounding box
+function yellow_centroid = get_yellow_centroid(img, bbox)
+    % extract the bounding box of the current object
+    bbox = round(bbox);
+    x = bbox(1);
+    y = bbox(2);
+    width = bbox(3);
+    height = bbox(4);
+    visualize = false;
+
+    % extract the region of interest
+    roi = img(y : y + height, x : x + width, :);
+
+    % convert the region of interest to the HSV colour space
+    hsv_roi = rgb2hsv(roi);
+
+    % extract the hue, saturation and value channels
+    hue = hsv_roi(:, :, 1);
+    saturation = hsv_roi(:, :, 2);
+    value = hsv_roi(:, :, 3);
+
+    % threshold the hue channel to extract the yellow pixels
+    yellow_mask = hue > 0.1 & hue < 0.2;
+
+    % threshold the saturation channel to extract the yellow pixels
+    yellow_mask = yellow_mask & saturation > 0.5;
+
+    % threshold the value channel to extract the yellow pixels
+    yellow_mask = yellow_mask & value > 0.5;
+
+    % check if the yellow mask is empty
+    if ~any(yellow_mask(:))
+        yellow_centroid = [0, 0];
+    else
+        % find the centroid of the yellow pixels
+        yellow_centroid = regionprops(yellow_mask, 'Centroid');
+        yellow_centroid = yellow_centroid.Centroid;
+        yellow_centroid = [yellow_centroid(1) + x, yellow_centroid(2) + y];
+
+        % visualisation
+        if visualize
+            imshow(img);
+            hold on;
+            rectangle('Position', bbox, 'EdgeColor', 'r');
+            plot(yellow_centroid(1), yellow_centroid(2), 'ro');
+            hold off;
+            pause(0.5);
+        end
+    end
+
+
 end
