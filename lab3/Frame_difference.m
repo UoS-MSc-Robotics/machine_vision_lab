@@ -1,41 +1,50 @@
-clear all
-close all
+% Copyright (c) 2024 Leander Stephen D'Souza
+
+% Program to analyze background subtraction using frame difference
 
 % read the video
 source = VideoReader('car-tracking.mp4');
 
 % create and open the object to write the results
 output = VideoWriter('frame_difference_output.mp4', 'Motion JPEG 2000');
-open(output);
 
-thresh = 25;      % A parameter to vary
+% set the threshold
+thresh = 25;
 
-% read the first frame of the video as a background model
-bg = readFrame(source);
-bg_bw = rgb2gray(bg);           % convert background to greyscale
+% call the function to subtract the background
+frame_difference(source, output, thresh); % call the function to subtract the background
 
-% --------------------- process frames -----------------------------------
-% loop all the frames
-while hasFrame(source)
-    fr = readFrame(source);     % read in frame
-    fr_bw = rgb2gray(fr);       % convert frame to grayscale
-    fr_diff = abs(double(fr_bw) - double(bg_bw));  % cast operands as double to avoid negative overflow
 
-    % if fr_diff > thresh pixel in foreground
-    fg = uint8(zeros(size(bg_bw)));
-    fg(fr_diff > thresh) = 255;
+% function to subtract the background
+function frame_difference(source, output, thresh)
+    open(output); % open the output video
 
-    % update the background model
-    bg_bw = fr_bw;
+    % read the first frame of the video as a background model
+    bg = readFrame(source);
+    bg_bw = rgb2gray(bg);           % convert background to greyscale
 
-    % visualise the results
-    figure(1),subplot(3,1,1), imshow(fr)
-    subplot(3,1,2), imshow(fr_bw)
-    subplot(3,1,3), imshow(fg)
-    drawnow
+    % --------------------- process frames -----------------------------------
+    % loop all the frames
+    while hasFrame(source)
+        fr = readFrame(source);     % read in frame
+        fr_bw = rgb2gray(fr);       % convert frame to grayscale
+        fr_diff = abs(double(fr_bw) - double(bg_bw));  % cast operands as double to avoid negative overflow
 
-    writeVideo(output, fg);           % save frame into the output video
+        % if fr_diff > thresh pixel in foreground
+        fg = uint8(zeros(size(bg_bw)));
+        fg(fr_diff > thresh) = 255;
+
+        % update the background model
+        bg_bw = fr_bw;
+
+        % visualise the results
+        figure(1),subplot(3,1,1), imshow(fr)
+        subplot(3,1,2), imshow(fr_bw)
+        subplot(3,1,3), imshow(fg)
+        drawnow
+
+        writeVideo(output, fg);           % save frame into the output video
+    end
+
+    close(output); % save video
 end
-
-
-close(output); % save video

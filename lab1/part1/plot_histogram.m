@@ -10,7 +10,7 @@ plot_rgb_histogram(imread('Dog.jpg'));
 % Function to plot rgb histogram of an image
 function plot_rgb_histogram(img)
     % Get the size of the image
-    [rows, cols, channels] = size(img);
+    [~, ~, channels] = size(img);
 
     % Check if the image is rgb
     if channels ~= 3
