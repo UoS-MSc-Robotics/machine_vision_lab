@@ -29,7 +29,7 @@ function treasure_hunter(img)
     props = regionprops(con_com);
 
     % Drawing bounding boxes
-    n_objects = numel(props);
+    % n_objects = numel(props);
     % imshow(img);
     % hold on;
     % for object_id = 1 : n_objects
