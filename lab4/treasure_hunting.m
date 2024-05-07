@@ -85,6 +85,7 @@ function treasure_hunter(img)
         end
         % Found treasure
         cur_object = prev_object;
+        break;
     end
 
     % helper variable for drawing the treasure
@@ -122,7 +123,7 @@ function treasure_hunter(img)
     end
 
     hold off;
-    title('Treasure Path');
+    title('Treasure Path - Intermediate');
 end
 
 % Function to find the arrow objects
