@@ -27,6 +27,7 @@ function plot_rgb_histogram(img)
     end
 
     % Display the image and histogram in a single figure
+    font_size = 12;
     figure;
     subplot(1, 2, 1);
     imshow(img);
@@ -37,8 +38,8 @@ function plot_rgb_histogram(img)
     hold on;
     bar(histogram(:, 2), 'g');
     bar(histogram(:, 3), 'b');
-    title('RGB Histogram');
-    xlabel('Intensity');
-    ylabel('Frequency');
-    legend('Red', 'Green', 'Blue');
+    title('RGB Histogram','FontSize',font_size);
+    xlabel('Intensity','FontSize',font_size);
+    ylabel('Frequency','FontSize',font_size);
+    legend('Red', 'Green', 'Blue', 'Location', 'best');
 end

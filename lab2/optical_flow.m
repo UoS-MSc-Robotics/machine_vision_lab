@@ -1,23 +1,25 @@
 % Copyright (c) 2024 Leander Stephen D'Souza
 
 % Program to analyze Optical Flow in a Video Sequence
+clc; clear; close all;
 
 % Task 1: Find Corner Points
-find_corner_points(imread('red_square_static.jpg'), 'Red Square');
+% find_corner_points(imread('red_square_static.jpg'), 'Red Square');
 find_corner_points(imread('GingerBreadMan_first.jpg'), 'Ginger Bread Man');
 
-% Task 2: Optical Flow
+% % Task 2: Optical Flow
 first_image = imread('GingerBreadMan_first.jpg');
 second_image = imread('GingerBreadMan_second.jpg');
 estimate_optical_flow(first_image, second_image);
 
-% Task 3: Optical Flow in Video Sequence
+% % Task 3: Optical Flow in Video Sequence
 video = VideoReader('red_square_video.mp4');
-optical_flow_video(video);
+ground_truth = load('new_red_square_gt.mat');
+% optical_flow_video(video, ground_truth);
 
 
 % Function to analyze the optical flow in a video sequence
-function optical_flow_video(video)
+function optical_flow_video(video, ground_truth)
     % Read the video frames
     video_frames = read(video);
     num_frames = video.NumFrames;
@@ -26,101 +28,99 @@ function optical_flow_video(video)
     opticalFlow = opticalFlowLK('NoiseThreshold', 0.009);
 
     % Load the actual corner trajectory
-    actual_trajectory = load('red_square_gt.mat');
+    actual_trajectory = cell2mat(struct2cell(ground_truth));
 
     % Save all the estimated trajectory of the corner points
-    corner_trajectory = [[], []];
+    predicted_trajectory = zeros(num_frames - 1, 2);
 
     % Initialize the corner points
-    corner_x = 0;
-    corner_y = 0;
+    first_frame = rgb2gray(video_frames(:,:,:,1));
+    corners = corner(first_frame, 'Harris');
+    corner_x = corners(1, 1);
+    corner_y = corners(1, 2);
 
-    % Initialize the RMSE
-    individual_rmse = [];
-    combined_rmse = 0;
+    % Initialize flow
+    flow = estimateFlow(opticalFlow, first_frame);
+
+    % Initialize corner trajectory
+    vx = flow.Vx(round(corner_y), round(corner_x));
+    vy = flow.Vy(round(corner_y), round(corner_x));
+
+    % Compute the new position by adding the velocity vector to the current position
+    x_new = corner_x + vx;
+    y_new = corner_y + vy;
+    predicted_trajectory(1, :) = [x_new, y_new];
 
     % Iterate through the video frames
-    for i = 1:num_frames-1
-        if i == 1
-            % Convert the frames to grayscale
-            first_frame = rgb2gray(video_frames(:,:,:,i));
+    for i = 2:num_frames
+        % Read the current frame
+        current_frame = rgb2gray(video_frames(:,:,:,i));
 
-            % Get all the corner points in the first frame
-            corners = corner(first_frame, 'Harris');
+        % Detect corners in the current frame
+        corners = corner(current_frame, 'Harris');
 
-            % get the top left corner point - manual selection
-            corner_x = corners(1, 1);
-            corner_y = corners(1, 2);
-
-            % Estimate the optical flow
-            estimateFlow(opticalFlow, first_frame);
-
-            % Update the RMSE
-            individual_rmse = [individual_rmse; sqrt((corner_x - actual_trajectory.gt_track_spatial(i, 1))^2 + (corner_y - actual_trajectory.gt_track_spatial(i, 2))^2)];
-            combined_rmse = combined_rmse + individual_rmse(i)^2;
-        end
-
-        % Convert the next frame to grayscale
-        next_frame = rgb2gray(video_frames(:,:,:,i+1));
-
-        % Find the corner points in the next frame
-        corners = corner(next_frame, 'Harris');
-
-        % Get the corner point closest to the previous corner point
+        % Find the nearest corner to the previous corner
         min_dist = 1000000;
-
-        for j = 1:4
-            dist = sqrt((corners(j, 1) - corner_x)^2 + (corners(j, 2) - corner_y)^2);
+        for j = 1:size(corners, 1)
+            dist = sqrt((corners(j, 1) - x_new)^2 + (corners(j, 2) - y_new)^2);
             if dist < min_dist
                 min_dist = dist;
-                nearest_corner_x = corners(j, 1);
-                nearest_corner_y = corners(j, 2);
+                nearest_corner = corners(j, :);
             end
         end
 
-        % assign the nearest corner point
-        corner_x = nearest_corner_x;
-        corner_y = nearest_corner_y;
-
-        % Estimate the optical flow for this point
-        flow = estimateFlow(opticalFlow, next_frame);
-
         % Update the corner position
-        x_new = corner_x + flow.Vx(round(corner_y), round(corner_x));
-        y_new = corner_y + flow.Vy(round(corner_y), round(corner_x));
+        corner_x = nearest_corner(1);
+        corner_y = nearest_corner(2);
 
-        % update the corner position
-        corner_x = x_new;
-        corner_y = y_new;
+        % Estimate the optical flow for the current frame
+        flow = estimateFlow(opticalFlow, current_frame);
 
-        % Update the corner trajectory
-        corner_trajectory = [corner_trajectory; [corner_x, corner_y]];
+        % Compute the new position by adding the velocity vector to the current position
+        vx = flow.Vx(round(corner_y), round(corner_x));
+        vy = flow.Vy(round(corner_y), round(corner_x));
 
-        % Update the RMSE
-        individual_rmse = [individual_rmse; sqrt((corner_x - actual_trajectory.gt_track_spatial(i+1, 1))^2 + (corner_y - actual_trajectory.gt_track_spatial(i+1, 2))^2)];
-        combined_rmse = combined_rmse + individual_rmse(i+1)^2;
-
+        % Update the track with the new position
+        predicted_trajectory(i, :) = [corner_x + vx, corner_y + vy];
     end
 
-    % Plot the estimated corner trajectory and the actual corner trajectory in a single plot in the final frame of the video
-    figure;
-    plot(corner_trajectory(:, 1), corner_trajectory(:, 2), 'r');
-    hold on;
-    plot(actual_trajectory.gt_track_spatial(:, 1), actual_trajectory.gt_track_spatial(:, 2), 'b');
+    % Plot the estimated corner trajectory and the actual corner trajectory
+    last_frame = video_frames(:,:,:,num_frames);
+
+    imshow(last_frame);
+    hold on
+    plot(predicted_trajectory(:, 1), predicted_trajectory(:, 2), 'r');
+    plot(actual_trajectory(:, 1), actual_trajectory(:, 2), 'b');
     title('Estimated vs Actual Corner Trajectory');
     xlabel('X');
     ylabel('Y');
     legend('Estimated Trajectory', 'Actual Trajectory');
+    hold off
+
+    % Get RMSEx, RMSEy, and RMSE
+    for i = 1:num_frames-1
+        RMSE_x(i) = sqrt((actual_trajectory(i+1, 1) - predicted_trajectory(i, 1)) ^ 2);
+        RMSE_y(i) = sqrt((actual_trajectory(i+1, 2) - predicted_trajectory(i, 2)) ^ 2);
+        RMSE(i) = sqrt((actual_trajectory(i+1, 1) - predicted_trajectory(i, 1)) ^ 2 + ...
+                        (actual_trajectory(i+1, 2) - predicted_trajectory(i, 2)) ^ 2);
+    end
+
+    % Plot the RMSE values
+    figure;
+    plot(2:num_frames, RMSE_x, 'b');
+    hold on;
+    plot(2:num_frames, RMSE_y, 'r');
+    plot(2:num_frames, RMSE, 'g');
+    title('RMSE Values');
+    xlabel('Frame Number');
+    ylabel('RMSE');
+    legend('RMSE_x', 'RMSE_y', 'RMSE');
     hold off;
 
-    % Write the RMSE to a file
-    fileID = fopen('RMSE.txt', 'w');
-    fprintf(fileID, '%f\n', individual_rmse);
-    fclose(fileID);
-
-    % Print the combined RMSE
-    disp("Combined RMSE: " + sqrt(mean(combined_rmse)));
-
+    % Print the RMSE values
+    fprintf('RMSE_x: %f\n', mean(RMSE_x));
+    fprintf('RMSE_y: %f\n', mean(RMSE_y));
+    fprintf('RMSE: %f\n', mean(RMSE));
 end
 
 
@@ -141,14 +141,17 @@ function estimate_optical_flow(first_image, second_image)
     figure;
     imshow(second_image);
     hold on;
-    plot(flow, 'DecimationFactor', [5 5], 'ScaleFactor', 8);
+    plot(flow, 'DecimationFactor', [5 5], 'ScaleFactor', 15);
     title('Optical Flow between the two images');
     hold off;
 
     % Plot the optical flow vectors
     figure;
     plot(flow);
-    title('Optical Flow Vectors');
+    xlabel('X');
+    ylabel('Y');
+    legend('Optical Flow Vectors from the first image to the second image');
+    title('Optical Flow Change');
 end
 
 
@@ -160,11 +163,14 @@ function find_corner_points(img, title_name)
     % Find the corner points in the image
     corners = detectHarrisFeatures(img_gray);
 
+    % Save the strongest corner points
+    strongest_corners = corners.selectStrongest(50);
+
     % Plot the image with the corner points
     figure;
     imshow(img);
     hold on;
-    plot(corners.selectStrongest(50));
+    plot(strongest_corners.Location(:, 1), strongest_corners.Location(:, 2), 'g+', 'MarkerSize', 15, 'LineWidth', 3);
     title("Corner Points in " + title_name);
     hold off;
 end

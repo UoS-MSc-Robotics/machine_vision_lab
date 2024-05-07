@@ -85,6 +85,8 @@ function treasure_hunter(img)
 
     % helper variable for drawing the treasure
     treasure_counter = 0;
+    treasure_found = false;
+    treasure_offset = 0;
 
     % visualisation of the path
     imshow(img);
@@ -96,14 +98,21 @@ function treasure_hunter(img)
         % reset for treasure
         if ismember(object_id, treasure_list)
             treasure_counter = treasure_counter + 1;
+            treasure_found = true;
             rectangle('Position', props(object_id).BoundingBox, 'EdgeColor', 'g');
             str = num2str(treasure_counter);
             text(props(object_id).BoundingBox(1), props(object_id).BoundingBox(2), str, 'Color', 'g', 'FontWeight', 'bold', 'FontSize', 14);
             continue;
         end
 
+        if treasure_found
+            treasure_found = false;
+            treasure_offset = 1;
+            continue;
+        end
+
         rectangle('Position', props(object_id).BoundingBox, 'EdgeColor', 'y');
-        str = num2str(path_element - treasure_counter);
+        str = num2str(path_element - treasure_counter - treasure_offset);
         text(props(object_id).BoundingBox(1), props(object_id).BoundingBox(2), str, 'Color', 'r', 'FontWeight', 'bold', 'FontSize', 14);
     end
 
