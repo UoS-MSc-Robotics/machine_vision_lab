@@ -1,50 +1,54 @@
 % Copyright (c) 2024 Leander Stephen D'Souza
 
 % Program to implement Treasure Hunting using Arrow Detection
-
+clear; clc; close all;
 
 %% Treasure Hunting
-% treasure_hunter(imread('Treasure_easy.jpg'));
-% treasure_hunter(imread('Treasure_medium.jpg'));
+treasure_hunter(imread('Treasure_easy.jpg'));
+treasure_hunter(imread('Treasure_medium.jpg'));
 treasure_hunter(imread('Treasure_hard.jpg'));
 
 
 % Function to implement Treasure Hunting
 function treasure_hunter(img)
+    figure;
+
     % Show image
-    % imshow(img);
-    % pause(0.5);
+    subplot(2, 3, 1);
+    imshow(img);
+    title('Original Image');
 
     % Binarisation
     bin_img = imbinarize(rgb2gray(img), 0.1);
-    % imshow(bin_img);
-    % pause(0.5);
+    subplot(2, 3, 2);
+    imshow(bin_img);
+    title('Binary Image');
+
 
     % Extracting connected components
     con_com = logical(bwlabel(bin_img));
-    % imshow(label2rgb(con_com));
-    % pause(0.5);
+    subplot(2, 3, 3);
+    imshow(label2rgb(con_com));
+    title('Connected Components');
 
     % Computing objects properties
     props = regionprops(con_com);
 
     % Drawing bounding boxes
-    % n_objects = numel(props);
-    % imshow(img);
-    % hold on;
-    % for object_id = 1 : n_objects
-    %     rectangle('Position', props(object_id).BoundingBox, 'EdgeColor', 'b');
-    % end
-    % hold off;
-    % pause(0.5);
+    n_objects = numel(props);
+    subplot(2, 3, 4);
+    imshow(img);
+    hold on;
+    for object_id = 1 : n_objects
+        rectangle('Position', props(object_id).BoundingBox, 'EdgeColor', 'w');
+    end
+    hold off;
+    title('Bounding Boxes');
+
 
     % Finding arrows
     [arrow_list, treasure_list] = arrow_finder(props, img);
-    disp(arrow_list);
-    disp(treasure_list);
     all_boxes_list = [arrow_list, treasure_list];
-    disp(all_boxes_list);
-
 
     % Finding red arrow (start point)
     n_arrows = numel(arrow_list);
@@ -89,6 +93,7 @@ function treasure_hunter(img)
     treasure_offset = 0;
 
     % visualisation of the path
+    subplot(2, 3, 5);
     imshow(img);
     hold on;
 
@@ -117,7 +122,7 @@ function treasure_hunter(img)
     end
 
     hold off;
-    pause(0.5);
+    title('Treasure Path');
 end
 
 % Function to find the arrow objects

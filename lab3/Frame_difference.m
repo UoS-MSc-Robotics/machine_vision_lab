@@ -8,15 +8,22 @@ close all; clear; clc; % clear the workspace
 source = VideoReader('car-tracking.mp4');
 
 % set the threshold
-thresh = 25;
+thresh_arr = [10, 25];
+n_cols = 2;
+n_rows = 1 + length(thresh_arr) / n_cols;
 
-% call the function to subtract the background
-frame_difference(source, thresh); % call the function to subtract the background
+figure
+set(gcf,'WindowState','maximized');
 
+for i = 1:length(thresh_arr)
+    % call the function to subtract the background
+    source.CurrentTime = 0; % reset the video to the beginning
+    frame_difference(source, thresh_arr(i), n_rows, n_cols, i); % call the function to subtract the background
+end
 
 
 % function to subtract the background
-function frame_difference(source, thresh)
+function frame_difference(source, thresh, n_rows, n_cols, i)
     % read the first frame of the video as a background model
     bg = readFrame(source);
     bg_bw = rgb2gray(bg);           % convert background to greyscale
@@ -45,8 +52,8 @@ function frame_difference(source, thresh)
         bg_bw = fr_bw;
 
         % visualise the results and label the frame number with titles
-        figure(1), subplot(1,2,1), imshow(fr), title('Original Frame')
-        subplot(1,2,2), imshow(fg), title('Foreground Pixels at Frame: ' + string(frame_counter) + ' with threshold: ' + string(thresh))
+        subplot(n_rows, n_cols, 1), imshow(fr), title('Original Frame')
+        subplot(n_rows, n_cols, i + 2), imshow(fg), title('Foreground Pixels at Frame: ' + string(frame_counter) + ' with threshold: ' + string(thresh))
         drawnow;
     end
 end
