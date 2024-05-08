@@ -54,20 +54,15 @@ for i = 1:2
     xlabel('Predicted Class');
     ylabel('True Class');
 
-    % Calculate precision, recall, and F1 score for each class
+    % Calculate precision, recall, and F1 score
     precision = diag(confusionMatrix) ./ sum(confusionMatrix, 2);
     recall = diag(confusionMatrix) ./ sum(confusionMatrix, 1)';
     f1Score = 2 * (precision .* recall) ./ (precision + recall);
 
-    % Display the precision, recall, and F1 score
-    fprintf('Precision: %f\n', mean(precision));
-    fprintf('Recall: %f\n', mean(recall));
-    fprintf('F1 Score: %f\n', mean(f1Score));
-
-    % Display the precision, recall, and F1 score for each class
-    disp("precision" + precision);
-    disp("recall" + recall);
-    disp("f1Score" + f1Score);
+    % Print the precision, recall, and F1 score
+    fprintf('Precision: %s\n', mat2str(precision, 3));
+    fprintf('Recall: %s\n', mat2str(recall, 3));
+    fprintf('F1 Score: %s\n', mat2str(f1Score, 3));
 
 end
 
@@ -146,7 +141,6 @@ function [layers, options] = custom_architecture(image_size, num_classes, valida
         'Verbose',false, ...
         'Plots','training-progress', ...
         'ExecutionEnvironment', 'gpu');
-
 end
 
 
